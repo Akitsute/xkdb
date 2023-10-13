@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>Test xkdb</title>
+	</head>
+	<body>
+		<script src="../xkdb.js"></script>
+		<script>
+			var db = new xkdb();
+
+			db.addList("Users");
+			db.addTable("Cars","id");
+
+			db.addItem("Users",{
+			    name:"admin",
+			    password:"admin",
+			    email:"admin@gmail.com"
+			});
+
+			db.addItem("Cars",{
+			    id:"carFord",
+			    model:"ford",
+			    color:"blue"
+			});
+
+			db.getItem("Cars","carFord").then(function(result){
+				console.log(result);
+			})
+
+			db.openDB("App",1,function(){
+				db.closeDB("App");
+			});
+		</script>
+	</body>
+</html>
