@@ -1,25 +1,3 @@
-// MIT License
-
-// Copyright (c) [year] [fullname]
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 var xkdb = function(){
     var self = this;
 
@@ -28,8 +6,6 @@ var xkdb = function(){
     self.mainStack = [];
     self.stack = [];
     self.pendingTasks = 0;
-
-    self.databases = [];
 
     self.hasTable = function(name){
         return new Promise(function(resolve,reject){
@@ -83,7 +59,7 @@ var xkdb = function(){
             })
         })
     }
-    self.openDB = function(name,version,closeCallback){
+    self.executeDB = function(name,version){
         self.pendingTasks = self.stack.length;
 
         return new Promise(function(resolve,reject){
@@ -114,11 +90,6 @@ var xkdb = function(){
             request.onsuccess = async function(event){
                 var database = event.target.result;
 
-                self.databases.push({
-                    name:name,
-                    handle:database
-                })
-
                 for(var task of self.stack){
                     var transaction = database.transaction(task.table,task.type === "get" ? "readonly" : "readwrite");
                     var objectStore = transaction.objectStore(task.table);
@@ -131,8 +102,11 @@ var xkdb = function(){
                             task.resolve(!(value === undefined));
 
                             self.pendingTasks--;
-                            if(self.pendingTasks === 0 && closeCallback !== undefined){
-                                closeCallback();
+
+                            if(self.pendingTasks === 0){
+                                database.close();
+
+                                resolve();
                             }
                         }
                     }else if(task.type === "add"){
@@ -140,8 +114,11 @@ var xkdb = function(){
 
                         taskRequest.onsuccess = function(){
                             self.pendingTasks--;
-                            if(self.pendingTasks === 0 && closeCallback !== undefined){
-                                closeCallback();
+
+                            if(self.pendingTasks === 0){
+                                database.close();
+
+                                resolve();
                             }
                         }
                     }else if(task.type === "put"){
@@ -149,8 +126,11 @@ var xkdb = function(){
 
                         taskRequest.onsuccess = function(){
                             self.pendingTasks--;
-                            if(self.pendingTasks === 0 && closeCallback !== undefined){
-                                closeCallback();
+
+                            if(self.pendingTasks === 0){
+                                database.close();
+
+                                resolve();
                             }
                         }
                     }else if(task.type === "get"){
@@ -161,8 +141,11 @@ var xkdb = function(){
                             task.resolve(value);
 
                             self.pendingTasks--;
-                            if(self.pendingTasks === 0 && closeCallback !== undefined){
-                                closeCallback();
+
+                            if(self.pendingTasks === 0){
+                                database.close();
+
+                                resolve();
                             }
                         }
                     }else if(task.type === "delete"){
@@ -170,42 +153,21 @@ var xkdb = function(){
 
                         taskRequest.onsuccess = function(event){
                             self.pendingTasks--;
-                            if(self.pendingTasks === 0 && closeCallback !== undefined){
-                                closeCallback();
+
+                            if(self.pendingTasks === 0){
+                                database.close();
+
+                                resolve();
                             }
                         }
                     }
                 }
 
                 self.stack = [];
-                resolve();
             }
         })
     }
-    self.closeDB = function(name){
-        for(var index in self.databases){
-            var database = self.databases[index];
-
-            if(database.name === name){
-                database.handle.close();
-
-                self.databases.splice(index,1);
-                return;
-            }
-        }
-    }
     self.deleteDB = function(name){
         indexedDB.deleteDatabase(name);
-
-        for(var index in self.databases){
-            var database = self.databases[index];
-
-            if(database.name === name){
-                database.handle.close();
-
-                self.databases.splice(index,1);
-                return;
-            }
-        }
     }
 }
